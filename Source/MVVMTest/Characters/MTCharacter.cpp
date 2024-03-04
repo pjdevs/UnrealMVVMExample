@@ -5,9 +5,12 @@
 
 #include "Components/WidgetComponent.h"
 #include "MVVMSubsystem.h"
+#include "GameFramework/CharacterMovementComponent.h"
+#include "MVVMTest/GameplayTags.h"
+#include "MVVMTest/Core/Abilities/MTAbilitySystemComponent.h"
 #include "View/MVVMView.h"
-#include "MVVMTest/Core/HealthComponent.h"
-#include "MVVMTest/UI/ViewModels/MVVMViewModelHealth.h"
+#include "MVVMTest/Core/Health/MTHealthComponent.h"
+#include "MVVMTest/UI/ViewModels/MTVMHealth.h"
 
 
 // Sets default values
@@ -16,7 +19,10 @@ AMTCharacter::AMTCharacter()
 	// Set this character to call Tick() every frame.  You can turn this off to improve performance if you don't need it.
 	PrimaryActorTick.bCanEverTick = true;
 
-	Health = CreateDefaultSubobject<UHealthComponent>("Health");
+	AbilitySystemComponent = CreateDefaultSubobject<UMTAbilitySystemComponent>("Ability System Component");
+	AbilitySystemComponent->SetIsReplicated(true);
+	
+	Health = CreateDefaultSubobject<UMTHealthComponent>("Health");
 	
 	HealthBarWidget = CreateDefaultSubobject<UWidgetComponent>("Health Bar Widget");
 	HealthBarWidget->SetupAttachment(RootComponent);
@@ -38,7 +44,10 @@ void AMTCharacter::PostInitializeComponents()
 {
 	Super::PostInitializeComponents();
 
-	ViewModelHealth = NewObject<UMVVMViewModelHealth>(this);
+	AbilitySystemComponent->RegisterGameplayTagEvent(FMTGameplayTags::StateDebuffStun, EGameplayTagEventType::NewOrRemoved)
+		.AddUObject(this, &AMTCharacter::OnStunChanged);
+	
+	ViewModelHealth = NewObject<UMTVMHealth>(this);
 	ViewModelHealth->SetMaxHealth(Health->GetMaxHealth());
 	ViewModelHealth->SetHealth(Health->GetHealth());
 	
@@ -52,6 +61,33 @@ void AMTCharacter::PostInitializeComponents()
 	});
 }
 
+void AMTCharacter::PossessedBy(AController* NewController)
+{
+	Super::PossessedBy(NewController);
+
+	if (AbilitySystemComponent)
+	{
+		AbilitySystemComponent->InitAbilityActorInfo(this, this);
+	}
+
+	SetOwner(NewController);
+}
+
+UAbilitySystemComponent* AMTCharacter::GetAbilitySystemComponent() const
+{
+	return AbilitySystemComponent;
+}
+
+void AMTCharacter::DebugStun() const
+{
+	AbilitySystemComponent->AddReplicatedLooseGameplayTag(FMTGameplayTags::StateDebuffStun);
+}
+
+void AMTCharacter::DebugUnStun() const
+{
+	AbilitySystemComponent->RemoveReplicatedLooseGameplayTag(FMTGameplayTags::StateDebuffStun);
+}
+
 void AMTCharacter::BeginPlay()
 {
 	Super::BeginPlay();
@@ -61,6 +97,18 @@ void AMTCharacter::BeginPlay()
 
 	if (const TObjectPtr<UMVVMView> HealthView = ViewModelSubsystem->GetViewFromUserWidget(HealthBarWidget->GetWidget()))
 	{
-		HealthView->SetViewModel(FName("MVVMViewModelHealth"), ViewModelHealth);
+		HealthView->SetViewModel(FName("ViewModel"), ViewModelHealth);
+	}
+}
+
+void AMTCharacter::OnStunChanged(FGameplayTag GameplayTag, int Count) const
+{
+	if (Count > 0)
+	{
+		GetCharacterMovement()->MaxWalkSpeed = 100.0f;
+	}
+	else
+	{
+		GetCharacterMovement()->MaxWalkSpeed = 600.0f;
 	}
 }

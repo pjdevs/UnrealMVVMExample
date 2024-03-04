@@ -21,7 +21,11 @@ public class MVVMTest : ModuleRules
 		{
 			"FieldNotification",
 			"ModelViewViewModel",
-			"UMG"
+			"UMG",
+            
+            "GameplayAbilities",
+            "GameplayTags",
+            "GameplayTasks",
 		});
 
 		// Uncomment if you are using Slate UI

@@ -3,21 +3,28 @@
 #pragma once
 
 #include "CoreMinimal.h"
+#include "AbilitySystemInterface.h"
+#include "GameplayTagContainer.h"
 #include "MVVMTest/TP_ThirdPerson/TP_ThirdPersonCharacter.h"
 #include "MTCharacter.generated.h"
 
+class UMTAbilitySystemComponent;
 class UWidgetComponent;
-class UMVVMViewModelHealth;
-class UHealthComponent;
+class UMTVMHealth;
+class UMTHealthComponent;
 
 UCLASS(ClassGroup=Game)
-class MVVMTEST_API AMTCharacter : public ATP_ThirdPersonCharacter
+class MVVMTEST_API AMTCharacter : public ATP_ThirdPersonCharacter, public IAbilitySystemInterface
 {
 	GENERATED_BODY()
 
+	/** Ability system component of the character */
+	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = Abilities, meta = (AllowPrivateAccess = "true"))
+	UMTAbilitySystemComponent* AbilitySystemComponent;
+	
 	/** Health component of the character */
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = Health, meta = (AllowPrivateAccess = "true"))
-	UHealthComponent* Health;
+	UMTHealthComponent* Health;
 
 	/** Health component of the character */
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = Health, meta = (AllowPrivateAccess = "true"))
@@ -25,7 +32,7 @@ class MVVMTEST_API AMTCharacter : public ATP_ThirdPersonCharacter
 	
 	/** Health view model */
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = Health, meta = (AllowPrivateAccess = "true"))
-	UMVVMViewModelHealth* ViewModelHealth;
+	UMTVMHealth* ViewModelHealth;
 	
 public:
 	// Sets default values for this character's properties
@@ -37,7 +44,20 @@ public:
 	// Called to bind functionality to input
 	virtual void SetupPlayerInputComponent(UInputComponent* PlayerInputComponent) override;
 	virtual void PostInitializeComponents() override;
+	// Possession on server
+	virtual void PossessedBy(AController* NewController) override;
 
+	virtual UAbilitySystemComponent* GetAbilitySystemComponent() const override;
+
+	UFUNCTION(BlueprintCallable)
+	void DebugStun() const;
+
+	UFUNCTION(BlueprintCallable)
+	void DebugUnStun() const;
+	
 protected:
-	void BeginPlay() override;
+	virtual void BeginPlay() override;
+
+private:
+	void OnStunChanged(FGameplayTag GameplayTag, int Count) const;
 };
